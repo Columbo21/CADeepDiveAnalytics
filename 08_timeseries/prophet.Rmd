@@ -1,0 +1,158 @@
+---
+title: "08 Timeseries Forecast mit prophet"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(prophet)
+library(lubridate)
+library(dygraphs)
+library(xts)
+library(fpp2)
+```
+
+
+## Überblick
+
+Zeitreihenvorhersagen mit der `prophet` Bibliothek erzielen gute Ergebnisse
+mit minimalem Aufwand. Es ist möglich Sondereffekte mit zusätzlichen Regressoren
+oder Feiertage einzubringen. Prophet wählt automatisch das beste ARIMA Modell
+mit passender Saisonalität aus. Eine Besonderheit ist die inkludierte Funktion
+zur Time-Series-Cross-Validation, die ein robusteres Verfahren zur Modellevaluation
+darstellt als das übliche Splitting in Training- und Testset.
+
+Zentrale Funktionen von `prophet` sind:
+
+- `prophet()`: Automatisches ARIMA Fitting
+- `make_future_dataframe()`: Erzeugung eines DF mit entsprechendem Zukunftshorizont für den Forecast
+- `predict()`: Erzeugung des Forecasts
+- `dyplot.prophet()`: Schöner interaktiver Plot des Forecasts
+- `cross_validation()`: Berechnung der Time-Series Cross Validation
+- `plot_cross_validation_metric()`: Plot zur CV
+
+## Dataset
+
+Wir verwenden einen Datensatz aus dem `forecast`Paket: `wineind`. Es enthält eine
+Zeitreihe zum Weinverkauf australischer Winzer zwischen 1980 und 1994. Es eignet
+sich auf Grund seiner starken saisonalen Struktur sehr gut für einen Forecast.
+
+```{r, fig.width=7}
+data(wineind, package='forecast')
+# prophet erwartet einen Dataframe im Format (ds = Datumsspalte, y = Wertespalte)
+df <- as_tibble(wineind) %>% 
+    mutate(ds = time(wineind) %>% as_date()) %>% 
+    rename(y = x)
+
+```
+
+<p style="page-break-before: always">
+
+```{r, fig.width=7}
+df %>% column_to_rownames('ds') %>% 
+    dygraph() %>% dygraphs::dyRangeSelector()
+```
+
+## Training 
+
+```{r, fig.width=7}
+m <- prophet::prophet(df)
+
+p <- prophet::make_future_dataframe(m, 36, freq = 'month') %>% 
+    predict(m, .)
+
+prophet::dyplot.prophet(m, p)
+
+# Komponentenplot
+prophet::prophet_plot_components(m, p)
+```
+
+## Cross-Validation
+
+```{r include=FALSE, cache=TRUE}
+cv <- prophet::cross_validation(m, horizon = 365, initial=365*8, period = 365/12, units = 'days')
+```
+
+```{r eval=FALSE}
+cv <- prophet::cross_validation(m, horizon = 365, initial=365*8, period = 365/12, units = 'days')
+```
+
+```{r fig.width=7, message=FALSE, warning=FALSE}
+cv %>% prophet::plot_cross_validation_metric(metric='mape', rolling_window = .2)
+
+cv %>% prophet::performance_metrics() %>% as_tibble() %>% 
+    mutate(horizon_cat = cut(as.numeric(horizon), 11, labels=1:11)) %>% 
+    ggplot(aes(x = horizon_cat, y= mape)) + geom_boxplot() + ylim(c(0,.3))
+```
+
+Die Cross-Validation zeigt, dass der Forecast Error MAPE im Schnitt leicht unter 10% liegt.
+
+## Aufgabe: Führe einen Timeseries Forecast mit zusätzlicher Regression durch
+
+```{r, fig.width=7}
+data(uschange, package='fpp2')
+
+df <- as_tibble(uschange) %>% 
+    mutate(ds = time(uschange) %>% as_date) %>% 
+    rename(y = Consumption)
+
+m <- prophet() %>% 
+    prophet::add_regressor('Income') %>% 
+    prophet::add_regressor('Production') %>% 
+    prophet::add_regressor('Savings') %>% 
+    prophet::add_regressor('Unemployment') %>% 
+    fit.prophet(df)
+
+p <- df %>% 
+    predict(m, .)
+
+dyplot.prophet(m, p)
+
+```
+
+
+
+
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+

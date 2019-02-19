@@ -1,0 +1,119 @@
+---
+title: "dplyr and ggplot"
+author: "Martin Hanewald"
+date: "30 Januar 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+library(tidyverse)
+library(nycflights13)
+library(rvest)
+```
+
+# Intro
+
+Basis Operationen von dplyr
+
+- filter() to select cases based on their values.
+- arrange() to reorder the cases.
+- select() and rename() to select variables based on their names.
+- mutate() and transmute() to add new variables that are functions of existing variables.
+- summarise() to condense multiple values to a single value.
+
+**Quelle: vignette('dplyr')**
+
+# Demonstration mit Star Wars Charakteren:
+
+## Welche Charaktere spielen am häufigsten mit?
+
+```{r}
+data(starwars)
+
+starwars %>% select(name, films) %>% 
+    unnest() %>% 
+    group_by(name) %>% 
+    count() %>% arrange(desc(n))
+
+```
+
+## Berechne die Frauenquote pro Film ?
+
+```{r}
+starwars %>% select(name, gender, films) %>% unnest %>% 
+    group_by(films, gender) %>% count() %>% 
+    filter(gender %in% c('female', 'male')) %>% 
+    spread(gender, n) %>% 
+    mutate(fem_perc = female / (female + male)) %>% 
+    select(films, fem_perc) %>% 
+    arrange(desc(fem_perc)) %>% 
+    ggplot(aes(films %>% fct_reorder(fem_perc), fem_perc)) + 
+        geom_col() + coord_flip() + scale_y_continuous(labels=scales::percent)
+
+```
+
+# Aufgaben
+
+## Welches sind die beliebtesten Reiseziele?
+
+Liste die Top 10
+
+```{r}
+data(flights)
+
+flights %>% 
+    group_by(dest) %>% 
+    count() %>% 
+    arrange(desc(n)) %>% 
+    head(10)
+```
+
+## Welches sind die unpünktlichsten Fluggesellschaften
+
+- Berechne die mittlere Verspätung im Verhältnis zur Strecke
+- Sortiere nach schlechtesten Fluggesellschaften
+
+```{r}
+ans <- flights %>% 
+    mutate(tot_delay = dep_delay + arr_delay) %>%
+    mutate(rel_delay = tot_delay / distance) %>%
+    group_by(carrier) %>% 
+    summarise(rel_delay = mean(rel_delay, na.rm =T),
+              count = n()) %>% 
+    arrange(desc(rel_delay))
+
+flights %>% 
+    mutate(tot_delay = dep_delay + arr_delay) %>%
+    mutate(rel_delay = tot_delay / distance) %>%
+    ggplot(aes(carrier %>% fct_reorder(rel_delay, mean, na.rm=T), log(rel_delay), fill=carrier)) +            geom_boxplot()
+
+# T-test
+flights %>% 
+    mutate(tot_delay = dep_delay + arr_delay) %>%
+    mutate(rel_delay = tot_delay / distance) %>%
+    filter(carrier %in% c('YV', 'UA')) %>% 
+    #mutate(carrier = factor(carrier)) %>% pull(carrier) %>% levels()
+    t.test(rel_delay~carrier, .)
+
+
+```
+
+
+Bonus: Auflösung des IATA Codes in Namen
+
+```{r}
+url <- "https://aspmhelp.faa.gov/index.php/ASQP_:_Carrier_Codes_And_Names"
+carrier_codes <- url %>%
+    html() %>%
+    html_table() %>% 
+    .[[1]]
+
+ans %>% 
+    left_join(carrier_codes, by=c('carrier'='IATA Carrier Code'))
+
+```

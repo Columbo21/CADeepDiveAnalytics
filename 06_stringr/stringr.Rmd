@@ -1,0 +1,119 @@
+---
+title: "06 Textmanipulation mit stringR"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+## Aufgabe: Zähle alle Vorkommnisse von *fruit* in *sentences*
+
+```{r}
+data(fruit)
+head(fruit)
+data(sentences)
+head(sentences)
+
+```
+
+## Ziel
+```{r echo=FALSE}
+words <- fruit %>% str_split(" ") %>% unlist()
+
+ans <- list()
+
+for(w in words){
+    ans[[w]] <- str_detect(tolower(sentences), tolower(w)) %>% sum()
+}
+
+ans %>% as_tibble() %>% 
+    gather(fruit, count) %>% 
+    filter(count > 0) %>% 
+    arrange(desc(count)) %>% kable()
+```
+
+
+## Lösung
+
+```{r}
+words <- fruit %>% str_split(" ") %>% unlist()
+
+ans <- list()
+
+for(w in words){
+    ans[[w]] <- str_detect(tolower(sentences), tolower(w)) %>% sum()
+}
+
+result <- ans %>% as_tibble() %>% 
+    gather(fruit, ct) %>% 
+    filter(ct > 0) %>% 
+    arrange(desc(ct)) 
+
+result %>% 
+    ggplot(aes(fruit %>% fct_reorder(ct), ct)) + geom_col(fill='#d15200') + coord_flip() +
+    theme_light() + labs(x = 'Count', y = 'Fruit')
+
+```
+
+
+## Alternative mit *apply*
+
+```{r}
+### without for loop
+
+fruit %>% 
+    str_split(" ") %>% 
+    unlist() %>% 
+    unique() %>%
+    sapply(function(x) str_detect(tolower(sentences), x) %>% sum(), simplify = F) %>% 
+    as_tibble() %>% 
+    gather(fruit, count) %>%
+    filter(count > 0) %>% 
+    arrange(desc(count))
+```
+
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+

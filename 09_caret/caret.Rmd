@@ -1,0 +1,174 @@
+---
+title: "09 Machine Learning mit caret"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caret)
+library(knitr)
+library(DT)
+library(GGally)
+library(Metrics)
+```
+
+## Überblick
+
+Das `caret` Paket ist der einfachste Weg um eine Vielzahl von Machine-Learning
+Techniken anzuwenden. Es verfügt über ein einheitliches Interface um zahlreiche
+Modelle aus anderen Paketen anzusprechen.
+
+Die zentralen FUnktionen sind:
+
+- `createDataPartition()`: Splitting in Training- und Testset
+- `train()`: Training von Modellen
+- `trainControl()`: Steuerung der Validierungsmethodik und Parametertuning
+- `preProcess()`: Optionales Pre-Processing der Daten (Centering, Scaling, etc.)
+- `predict()`: Erzeugung der Prediction
+- `resamples()`: Erzeugung von Cross-Validation Metriken mit `summary()`und `bwplot()`
+
+## Dataset
+
+Wir betrachten einen mitgelieferten Datensatz über den Zusammenhang zwischen
+Häuserpreisen (`price`) und verschiedenen Hauseigenschaften wie Größe, Lage, 
+Anzahl Badezimmer, etc.
+
+```{r}
+data(Sacramento, package='caret')
+Sacramento <- Sacramento %>% as_tibble()
+# für scrollbaren HTML Output
+Sacramento %>% sample_n(20) %>% datatable(options = list(scrollX=T))
+```
+
+## Exploration
+
+Ein einfacher Pairs Plot zwischen zwei ausgewählten Variabeln `sqft` und `baths`
+zeigt eine deutliche positivte Korrelation.
+
+```{r, fig.width=7, fig.height=5}
+Sacramento %>% select(price, sqft, baths) %>% ggpairs()
+```
+
+
+## Splitting und Training
+
+Wir splitten den Datensatz gemäß der 80/20 Faustregel.
+
+```{r}
+in_train <- createDataPartition(Sacramento$price, p = .8, list = FALSE)
+
+training <- Sacramento[ in_train,]
+testing  <- Sacramento[-in_train,]
+```
+
+Danach fitten wir ein einfaches lineares Modell sowie einen Decision Tree.
+
+Als Sampling Methode wählen wir die Cross-Validation (method='cv') und einige
+Pre-Processing Schritte für numerische Variablen. Als einzigen Prädiktor wählen
+wir zunächst nur die Variable `sqft`.
+
+```{r}
+fit_lm <- train(price ~ sqft,
+             trControl = trainControl(method='cv'),
+             preProcess = c('center', 'scale', 'zv'),
+             method = 'lm',
+             data=training)
+```
+
+
+```{r}
+fit_dtree <- train(price ~ sqft,
+             trControl = trainControl(method='cv'),
+             preProcess = c('center', 'scale', 'zv'),
+             method = 'rpart',
+             data=training)
+```
+
+## Evaluation
+
+Die Evaluation anhand der Kreuzvalidierungssamples zeigt das lineare Modell eindeutig
+im Vorteil.
+
+```{r, fig.width=7}
+res <- resamples(list(lm = fit_lm, dtree = fit_dtree))
+res %>% summary()
+res %>% bwplot(scales='free')
+```
+
+Auch die visuelle Inspektion der Prediction auf Basis des Testdatensatzes
+zeigt die Schwächen des Decision Tree Ansatzes.
+
+```{r, fig.width=7}
+ans <- tibble(obs = testing$price,
+              pred_lm = predict(fit_lm, testing),
+              pred_dtree = predict(fit_dtree, testing))
+
+ans %>% arrange(obs) %>% 
+    mutate(index = row_number(obs)) %>% 
+    gather(type, value, -index) %>% 
+    ggplot(aes(x=index, y =value, color=type)) + geom_point(alpha=.8) +
+    scale_y_continuous(labels = scales::comma) 
+```
+
+Abschließende Beurteilung der Güte auf dem Testset anhand der Performance-Kennzahl
+MAPE (Mean Absolute Percentage Error).
+
+```{r}
+ans %>%
+    summarise(mape_lm = mape(obs, pred_lm),
+              mape_dtree = mape(obs, pred_dtree),
+              mase_lm = mase(obs, pred_lm),
+              mase_dtree = mase(obs, pred_dtree))
+```
+
+
+## Aufgabe: Verbessere obiges Modell durch Variation
+
+1. Probiere ein Ensemble Modell aus (siehe caret Doku)
+2. Füge zusätzliche Variablen hinzu
+
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+
+

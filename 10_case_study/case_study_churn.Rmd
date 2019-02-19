@@ -1,0 +1,260 @@
+---
+title: "10 Fallstudie: Churn Prediction"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(1337)
+```
+
+
+## Packages
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(caret)
+```
+
+## Überblick
+
+
+## Dataset
+
+Zwei Datensätze:
+
+- User-Stammdaten
+- Aktivitäten pro User
+
+```{r message=FALSE}
+activity_raw <-  read_csv('data/activity_info.csv')
+user_raw <- read_csv('data/user_info.csv')
+```
+
+## Pre-Processing
+
+```{r}
+CHURN_PERIOD <- 21
+CHURN_THRESHOLD <- 0
+```
+
+### Cleanup
+
+```{r}
+activity <- activity_raw %>% 
+    mutate(Timestamp = mdy_hm(Timestamp) %>% as_date() + years(17)) %>%
+    mutate(ItemId = str_pad(ItemId, 12, pad='0')) %>% 
+    mutate_at(vars(TransactionId, UserId, ItemId), as.factor) %>% 
+    select(-Location, -ProductCategory, -X1)
+
+user <- user_raw %>% 
+    select(-Gender, -UserType) %>% 
+    mutate_all(as.factor)
+```
+
+### Create the `churn` label
+
+```{r fig.width=7}
+last_date <- max(activity$Timestamp)
+
+# Show Plot with churn period
+activity %>% 
+    ggplot(aes(Timestamp)) + geom_bar() + 
+    annotate(geom='rect', 
+              xmin=last_date-CHURN_PERIOD, 
+              ymin = 0, ymax=7000, xmax=last_date,
+              fill='red', alpha=.2)
+```
+
+
+```{r}
+# Approach one: For-loop, save results in list
+churn <- list()
+
+for(u in unique(activity$UserId)){
+    churn[[u]] <- activity %>%
+        filter(UserId == u) %>% 
+        filter(Timestamp > last_date - CHURN_PERIOD) %>% 
+        nrow() <= CHURN_THRESHOLD
+}
+
+churn_label <- churn %>% as_tibble() %>% 
+    gather(UserId, churn)
+
+# profiler: 25,56 sec
+```
+
+```{r}
+# Approach two: Group_by and summarise
+churn_label <- activity %>% 
+    mutate(in_period = Timestamp > last_date - CHURN_PERIOD) %>% 
+    select(UserId, TransactionId, in_period) %>% unique() %>% 
+    group_by(UserId) %>% 
+    summarise(churn = sum(in_period) <= CHURN_THRESHOLD) %>% 
+    mutate_at(vars(churn), as.factor)
+
+# profiler: 3,6 sec
+
+churn_label$churn %>% table()
+
+```
+
+### Feature Engineering
+
+- Total_Quantity
+- Total_Value
+
+- StDev_Quantity
+- StDev_Value
+
+- AvgTimeDelta
+- Recency
+
+- Count_Unique_TransactionId
+- Count_Unique_ItemId
+
+- Mean_Quantity_per_Unique_TransactionId
+- Mean_Quantity_per_Unique_ItemId
+
+- Mean_Value_per_Unique_TransactionId
+- Mean_Value_per_Unique_ItemId
+
+
+```{r}
+activity_before <- activity %>% filter(Timestamp < last_date - CHURN_PERIOD)
+
+activity_measures <- 
+    activity_before %>% 
+        group_by(UserId) %>% 
+        arrange(Timestamp, .by_group=TRUE) %>% 
+        summarise(Total_Quantity = sum(Quantity),
+                  Total_Value = sum(Value),
+                  StDev_Quantity = sd(Quantity),
+                  StDev_Value = sd(Value),
+                  AvgTimeDelta = mean(diff(Timestamp)),
+                  Recency = last_date - CHURN_PERIOD - max(Timestamp)) %>% 
+    full_join(
+        activity_before %>% 
+            group_by(UserId, ItemId) %>% 
+            summarise(Quantity_sum = sum(Quantity),
+                      Value_sum = sum(Value)) %>% 
+            summarise(Mean_Quantity_per_Unique_ItemId = mean(Quantity_sum),
+                      Mean_Value_per_Unique_ItemId = mean(Value_sum),
+                      Count_Unique_ItemId = n_distinct(ItemId))) %>% 
+    full_join(
+        activity_before %>% 
+            group_by(UserId, TransactionId) %>% 
+            summarise(Quantity_sum = sum(Quantity),
+                      Value_sum = sum(Value)) %>% 
+            summarise(Mean_Quantity_per_Unique_TransactionId = mean(Quantity_sum),
+                      Mean_Value_per_Unique_TransactionId = mean(Value_sum),
+                      Count_Unique_TransactionId = n_distinct(TransactionId)))
+
+```
+
+### Bind final model dataframe
+
+```{r}
+modeldat <- user %>% 
+    inner_join(churn_label) %>% 
+    inner_join(activity_measures) %>%
+    drop_na() # 724 lines dropped where only one transaction per user
+
+# check for na's
+modeldat %>% 
+    summarise_all(function(x) is.na(x) %>% sum()) %>% 
+    gather(var, na) %>% filter(na>0)
+```
+
+## Modelling
+
+### Splitting
+
+```{r}
+inTrain <- createDataPartition(modeldat$churn, p = .8, list=F)
+training <- modeldat[inTrain,]
+testing <- modeldat[-inTrain,]
+```
+
+### Training
+
+```{r, cache=T}
+trControl <- trainControl(method='cv')
+
+fit <- list()
+
+fit$glm <- train(churn ~ . -UserId,
+                method = 'glm',
+                family = 'binomial',
+                trControl = trControl,
+                preProcess = c('center', 'scale'),
+                data = training)
+
+fit$logitboost <- train(churn ~ . -UserId,
+                method = 'LogitBoost',
+                trControl = trControl,
+                preProcess = c('center', 'scale'),
+                data = training)
+
+fit$xgbtree <- train(churn ~ . -UserId,
+                method = 'xgbTree',
+                trControl = trControl,
+                preProcess = c('center', 'scale'),
+                data = training)
+
+```
+
+### Evaluation
+ 
+```{r fig.width=7}
+
+resamples(fit) %>% bwplot()
+
+varImp(fit$glm)
+#varImp(fit$logitboost)
+varImp(fit$xgbtree)
+
+fit$glm %>% predict(testing) %>% confusionMatrix(testing$churn)
+fit$logitboost %>% predict(testing) %>% confusionMatrix(testing$churn)
+fit$xgbtree %>% predict(testing) %>% confusionMatrix(testing$churn)
+
+```
+ 
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+

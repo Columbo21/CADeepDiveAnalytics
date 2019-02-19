@@ -1,0 +1,149 @@
+---
+title: "05 Datumsformatierung mit lubridate"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+    
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>"
+)
+```
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(knitr)
+```
+
+## Syntax
+
+Ein übliches Datum in Textformat
+```{r}
+d <- c('31. Juli 2017 15:00')
+d
+```
+
+Konvertierung in `datetime`
+```{r}
+dttm <- dmy_hm(d)
+dttm
+```
+
+
+Konvertierung in `date`
+```{r}
+date <- dmy_hm(d) %>% as_date()
+date
+```
+
+Repräsentation als numerischer Wert
+```{r}
+dttm %>% as.numeric()
+date %>% as.numeric()
+```
+
+Konvertierung aus einer Quartalsangabe
+```{r}
+q <- yq('2017-Q3')
+q
+```
+
+Nur eine Zeitangabe
+```{r}
+hms('10:00:00')
+```
+
+Erzeugung einer Datums/Zeitsequenz
+```{r}
+seq(ymd_h('2018-01-01 00'), ymd_h('2018-01-03 00'), by = '1 hours')
+```
+
+Wochentage
+```{r}
+wday(date, label=T)
+```
+
+Eine Zeichenkette mit dem Format `YYYY-MM` erzeugen.
+```{r}
+glue::glue('{year(date)}-{str_pad(month(date),2, pad=0)}')
+date %>% format('%Y-%m')
+```
+
+
+## Aufgabe: Erzeuge ein tibble mit folgendem Layout 
+
+```{r echo=FALSE}
+season <- function(x){
+    if(!is.Date(x)) return(NA)
+    
+    m <- month(x)
+    if(m %in% c(12,1,2)) return('Winter')
+    if(m %in% 3:5) return('Frühling')
+    if(m %in% 6:8) return('Sommer')
+    if(m %in% 9:11) return('Herbst')
+}
+
+
+tibble(Date = seq(ymd('2019-01-01'), ymd('2019-12-01'), by = '1 month')) %>% 
+    mutate(Quarter = paste0('Q',quarter(Date))) %>% 
+    mutate(Month = Date %>% format('%Y-%m')) %>% 
+    mutate(Month_label = Date %>% month(label=T)) %>% 
+    mutate(Season = sapply(Date, season)) %>% kable()
+```
+
+## Lösung:
+
+```{r echo=TRUE, eval=FALSE}
+season <- function(x){
+    if(!is.Date(x)) return(NA)
+    m <- month(x)
+    if(m %in% c(12,1,2)) return('Winter')
+    if(m %in% 3:5) return('Frühling')
+    if(m %in% 6:8) return('Sommer')
+    if(m %in% 9:11) return('Herbst')
+}
+
+tibble(Date = seq(ymd('2019-01-01'), ymd('2019-12-01'), by = '1 month')) %>% 
+    mutate(Quarter = paste0('Q',quarter(Date))) %>% 
+    mutate(Month = Date %>% format('%Y-%m')) %>% 
+    mutate(Month_label = Date %>% month(label=T)) %>% 
+    mutate(Season = sapply(Date, season))
+```
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+
+
+

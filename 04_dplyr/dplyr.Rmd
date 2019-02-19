@@ -1,0 +1,170 @@
+---
+title: "04 Datenmanipulation mit dplyR"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+```
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(nycflights13)
+library(rvest)
+library(knitr)
+```
+
+## Überblick
+
+Basis Operationen von `dplyr`:
+
+- `filter()` zum Filtern nach Werten
+- `arrange()` zum Sortieren
+- `select()` und `rename()` zum Auswählen von Spalten und Umbenennen
+- `mutate()` und `transmute()` zum Erzeugen neuer Spalten
+- `group_by()` zum Definieren einer Gruppierungsebene
+- `summarise()`zum Aggregieren von Kennzahlen auf einer Gruppierungsebene
+
+## Demonstration mit Star Wars Charakteren:
+
+### Welche Charaktere spielen am häufigsten mit?
+
+```{r}
+data(starwars)
+
+ans <- starwars %>% select(name, films) %>% 
+    unnest() %>% 
+    group_by(name) %>% 
+    count() %>% arrange(desc(n)) %>% 
+    head(10) %>% 
+    kable()
+```
+
+
+### Berechne die Frauenquote pro Film ?
+
+```{r fig.width=7}
+ans <- starwars %>% select(name, gender, films) %>% unnest %>% 
+    group_by(films, gender) %>% count() %>% 
+    filter(gender %in% c('female', 'male')) %>% 
+    spread(gender, n) %>% 
+    mutate(fem_perc = female / (female + male)) %>% 
+    select(films, fem_perc) %>% 
+    arrange(desc(fem_perc)) 
+
+ans %>% kable()
+
+ans %>% 
+    ggplot(aes(films %>% fct_reorder(fem_perc), fem_perc)) + 
+        geom_col() + coord_flip() + scale_y_continuous(labels=scales::percent)+
+        labs(x='Titel', 'Anteil Frauen')
+
+```
+
+## Aufgaben: Analysiere Flugdaten
+
+Datensatz `flights` aus Package `nycflights13`.
+
+```{r}
+data(flights)
+```
+
+```{r, echo = F}
+flights %>% sample_n(10) %>% DT::datatable(width = 700, options=list(scrollX = TRUE))
+```
+
+### Welches sind die beliebtesten Reiseziele?
+
+Liste die Top 10
+
+```{r}
+flights %>% 
+    group_by(dest) %>% 
+    count() %>% 
+    arrange(desc(n)) %>% 
+    head(10) %>% 
+    kable()
+```
+
+### Welches sind die unpünktlichsten Fluggesellschaften
+
+- Berechne die mittlere Verspätung im Verhältnis zur Strecke
+- Sortiere nach schlechtesten Fluggesellschaften
+
+```{r, fig.width = 7}
+ans <- flights %>% 
+    mutate(tot_delay = dep_delay + arr_delay) %>%
+    mutate(rel_delay = tot_delay / distance) %>%
+    group_by(carrier) %>% 
+    summarise(rel_delay = mean(rel_delay, na.rm =T),
+              count = n()) %>% 
+    arrange(desc(rel_delay))
+    
+
+ans %>% head(10) %>% kable()
+
+# Darstellung als Boxplot
+flights %>% 
+    mutate(tot_delay = dep_delay + arr_delay) %>%
+    mutate(rel_delay = tot_delay / distance) %>%
+    ggplot(aes(carrier %>% fct_reorder(rel_delay, mean, na.rm=T), log(rel_delay), fill=carrier)) +            
+    geom_boxplot() + labs(y='Relative delay (log)', x='Carrier') +
+    theme(legend.position="none")
+
+```
+
+
+### Bonus: Auflösung des IATA Codes in Namen
+
+```{r}
+url <- "https://aspmhelp.faa.gov/index.php/ASQP_:_Carrier_Codes_And_Names"
+carrier_codes <- url %>%
+    read_html() %>%
+    html_table() %>% 
+    .[[1]]
+
+ans %>% 
+    left_join(carrier_codes, by=c('carrier'='IATA Carrier Code')) %>% 
+    kable()
+
+```
+
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>

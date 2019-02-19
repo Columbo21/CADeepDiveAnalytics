@@ -1,0 +1,231 @@
+---
+title: "07 Erstellung von Grafiken mit ggplot2"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+	message = FALSE,
+	warning = FALSE,
+	collapse = TRUE,
+	comment = "#>"
+)
+```
+## Packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(DT)
+```
+
+## Überblick
+
+Das Paket `ggplot2` ist die meistgenutze Grafikbibliothek in R. Sein modularer
+Aufbau in `aesthetics`, `coordinates` und `geometries` erlaubt beliebige Freiheit
+in der Gestaltung von Plots.
+
+## Dataset
+
+Datensatz `midwest` aus dem Package `ggplot2` enthält Daten einer Volkszählung.
+```{r}
+data(midwest)
+# Umwandlung einiger Variablen in Datentyp 'factor'
+midwest <- midwest %>% mutate_at(vars(county, state, inmetro, category), as.factor)
+# Show sample
+sample_n(midwest, 10) %>% DT::datatable(width = 700, options=list(scrollX = TRUE))
+```
+
+## Histogram
+Verteilung einer numerischen Variable
+
+```{r fig.width=7}
+midwest %>% 
+    ggplot(aes(x = percasian / 100)) + 
+    geom_histogram(bins = 50, color=1, fill='#d77e2d') +
+    scale_x_continuous(labels=scales::percent) +
+    labs(x='Percent asian of tot. pop.', y = 'Count', 
+        title='Distribution of Asian percentage per district') 
+
+```
+
+## Quantilsplot
+
+Vergleich einer Verteilung mit Normalverteilung
+
+```{r fig.show='hold'}
+midwest %>% 
+    ggplot(aes(sample=percasian)) + geom_qq() + stat_qq_line()
+
+midwest %>% 
+    ggplot(aes(sample=log10(percasian))) + geom_qq() + stat_qq_line()
+```
+
+
+## Density plot
+Verteilung einer numerischen Variable im Vergleich mit wenigen Kategorien
+
+```{r fig.width=7}
+midwest %>% 
+    ggplot(aes(x = percasian / 100, fill = inmetro)) + 
+    geom_density(alpha=.5) +
+    scale_x_continuous(labels = scales::percent) +
+    scale_fill_discrete(labels = c('Yes', 'No')) +
+    labs(x='Percent asian of tot. pop.', y = 'Count', 
+        title='Distribution of Asian percentage per district',
+        fill = 'In metro area')
+
+```
+
+## Boxplot / Dotplot
+Verteilung einer numerischen Variable über mehrere Kategorien
+
+```{r fig.width=7}
+midwest %>% 
+    ggplot(aes(x = state %>% fct_reorder(percollege), y = percollege, fill=state)) + 
+    geom_dotplot(binaxis = 'y', stackdir = 'center', dotsize=.6) +
+    geom_boxplot(alpha = .3, outlier.size = 0) +
+    labs(x = 'State', y = 'College education in percent of tot. pop.')
+```
+
+
+## Scatterplot
+Relation zwischen zwei numerischen Variablen
+
+```{r fig.width=7}
+midwest %>% 
+    ggplot(aes(x=area, y=poptotal)) + 
+    geom_point(alpha=.5, color='#a52dd7') + 
+    geom_smooth(method="lm") +
+    scale_y_log10(labels= scales::comma) +
+    labs(x = 'Area', y = 'Total population', 
+         title='Population per Area', 
+         subtitle = 'in log scale')
+```
+
+### Als *facet-plot* unterschieden nach *state*
+
+```{r fig.width=7, fig.height=6}
+midwest %>% 
+    ggplot(aes(x=area, y=poptotal)) + 
+    geom_point(alpha=.5, color='#a52dd7') + 
+    geom_smooth(method="lm") +
+    scale_y_log10(labels= scales::comma) +
+    labs(x = 'Area', y = 'Total population', 
+         title='Population per Area', 
+         subtitle = 'in log scale') +
+    facet_wrap(vars(state))
+```
+
+## Matrix-Scatterplot
+
+```{r fig.width=7, fig.height=6}
+library(GGally)
+
+midwest %>% 
+    select(percollege, percbelowpoverty, percblack, percasian, inmetro) %>% 
+    GGally::ggpairs(mapping=aes(color=inmetro))
+```
+
+## Barplots
+
+```{r fig.show='hold'}
+midwest %>% 
+    ggplot(aes(state, fill = inmetro)) + geom_bar()
+
+midwest %>% 
+    ggplot(aes(state, fill = inmetro)) + geom_bar(position='dodge')
+
+```
+
+
+```{r fig.show='hold'}
+midwest %>% 
+    ggplot(aes(state, fill = inmetro, y = poptotal)) + geom_bar(stat='sum') +
+    scale_y_continuous(labels=scales::comma)
+
+midwest %>% 
+    ggplot(aes(state, fill = inmetro)) + geom_bar(position='fill') +
+    scale_y_continuous(labels = scales::percent)
+```
+
+
+## Timeseries
+
+```{r}
+# Build a Time series data set
+day <- Sys.Date() - 0:364
+value <- runif(365) + seq(-140, 224)^2 / 10000
+tsdata <- tibble(day, value)
+```
+
+```{r fig.width=7, fig.height=4}
+
+p <- tsdata %>%
+    ggplot(aes(day, value)) + 
+    geom_line() +
+    scale_x_date(
+        #date_labels  = '%Y-%m', 
+        date_breaks = '3 months'
+        )
+p
+```
+
+Interaktivität mit `ggplotly`
+
+```{r fig.width=7, fig.height=4}
+library(plotly)
+ggplotly(p)
+```
+
+Interaktivität mit `dygraphs`
+
+```{r fig.width=7, fig.height=4}
+library(dygraphs)
+
+xtsdata <- tsdata %>% 
+    as.data.frame() %>% 
+    column_to_rownames("day") %>% 
+    xts::as.xts()
+
+xtsdata %>% dygraph() %>% dyRangeSelector()
+```
+
+
+## Weitere Beispiele
+
+https://www.r-graph-gallery.com/
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+
+

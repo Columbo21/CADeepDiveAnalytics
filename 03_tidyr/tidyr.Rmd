@@ -1,0 +1,138 @@
+---
+title: "03 Datenaufbereitung mit tidyR"
+author: "Martin Hanewald"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+
+## Überblick
+
+Die gesamte Paketbibliothek `tidyverse` basiert auf dem Konzept von `tidy data`, 
+(im Gegensatz zu `messy data`).
+
+Ein Datensatz ist `tidy`, wenn 
+
+- Jede Variable eine eigene Spalte hat
+- Jede Messung einer Variable in einer eigenen Zeile zu finden ist
+- Mehrere Tabellen über eine eindeutige ID verknüpft werden können.
+
+Die wichtigsten Funktionen von `tidyr`:
+
+- `gather()`: Spaltenüberschriften zu Variablen
+- `spread()`: Umkehrfunktion zu `gather`
+- `separate()`: Textspalten auftrennen
+- `unite()`: Umkehrfunktion zu `unite`
+
+## Beispiele von messy-Data
+
+Variable "Year" ist in Spaltenüberschriften
+
+```{r}
+data("table4a")
+table4a %>% kable()
+```
+
+Anwendung von `gather`:
+
+```{r}
+table4a %>% 
+    gather(year, count, -country) %>% 
+    kable()
+```
+
+In Spalte `rate` sind mehrere Variablen enthalten und die Variable `year` ist 
+auf zwei Spalten verteilt.
+
+```{r}
+data("table5")
+table5 %>% kable()
+```
+
+Anwendung von `separate` und `unite`
+
+```{r}
+table5 %>% 
+    separate(rate, into = c("cases", "population")) %>% 
+    unite(year, century, year, sep="") %>% 
+    kable()
+```
+
+
+## Aufgabe: Transformiere den WHO Datensatz in das tidy Format
+
+```{r message=FALSE, warning=FALSE}
+who_messy <- read_csv2('who_messy.csv')
+```
+
+```{r echo=FALSE}
+who_messy %>% sample_n(100) %>% DT::datatable(width = 700, options=list(scrollX = TRUE))
+```
+
+
+Aus Dokumentation:
+
+> The data uses the original codes given by the World Health Organization. The column names for columns five through 60 are made by combining a code for method of diagnosis (rel = relapse, sn = negative pulmonary smear, sp = positive pulmonary smear, ep = extrapulmonary) to a code for gender (f = female, m = male) to a code for age group (014 = 0-14 yrs of age, 1524 = 15-24 years of age, 2534 = 25 to 34 years of age, 3544 = 35 to 44 years of age, 4554 = 45 to 54 years of age, 5564 = 55 to 64 years of age, 65 = 65 years of age or older).
+
+## Lösung
+
+```{r}
+who_tidy <- who_messy %>% 
+    gather(col, value, -(country:year)) %>% 
+    separate(col, into = c('method', 'sex', 'age')) %>% 
+    drop_na()
+```
+
+
+```{r echo=FALSE}
+who_tidy %>% sample_n(100) %>% DT::datatable(height = 500, width = 700, options=list(scrollX = TRUE))
+```
+```
+
+
+```{css, echo=FALSE}
+img{
+     border:0;
+     background-color: rgba(255, 255, 255, 0);
+   }
+   
+@media print {
+  div.divFooterLeft {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+
+  }
+
+div.divFooterRight {
+    position: fixed;
+    top: 0;
+    right: 0;
+    border:0;
+  }    
+}
+```
+
+<div class="divFooterLeft"><img src='../98_assets/ca_logo.svg' width="234px"></div>
+<div class="divFooterRight"><img src='../98_assets/c_by_qunis.svg' width="100px"></div>
+
+
+
