@@ -12,7 +12,7 @@
 
 <meta name="author" content="Martin Hanewald" />
 
-<meta name="date" content="2019-02-19" />
+<meta name="date" content="2019-02-28" />
 
 <title>04 Datenmanipulation mit dplyR</title>
 
@@ -79,7 +79,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">04 Datenmanipulation mit dplyR</h1>
 <h4 class="author"><em>Martin Hanewald</em></h4>
-<h4 class="date"><em>2019-02-19</em></h4>
+<h4 class="date"><em>2019-02-28</em></h4>
 
 
 
@@ -88,7 +88,8 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidyverse)
 <span class="kw">library</span>(nycflights13)
 <span class="kw">library</span>(rvest)
-<span class="kw">library</span>(knitr)</code></pre></div>
+<span class="kw">library</span>(knitr)
+<span class="kw">library</span>(DT)</code></pre></div>
 </div>
 <div id="uberblick" class="section level2">
 <h2>Überblick</h2>
@@ -108,12 +109,62 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <h3>Welche Charaktere spielen am häufigsten mit?</h3>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">data</span>(starwars)
 
-ans &lt;-<span class="st"> </span>starwars <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(name, films) <span class="op">%&gt;%</span><span class="st"> </span>
+starwars <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(name, films) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">unnest</span>() <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">group_by</span>(name) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">count</span>() <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">arrange</span>(<span class="kw">desc</span>(n)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">head</span>(<span class="dv">10</span>) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">kable</span>()</code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">name</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">R2-D2</td>
+<td align="right">7</td>
+</tr>
+<tr class="even">
+<td align="left">C-3PO</td>
+<td align="right">6</td>
+</tr>
+<tr class="odd">
+<td align="left">Obi-Wan Kenobi</td>
+<td align="right">6</td>
+</tr>
+<tr class="even">
+<td align="left">Chewbacca</td>
+<td align="right">5</td>
+</tr>
+<tr class="odd">
+<td align="left">Leia Organa</td>
+<td align="right">5</td>
+</tr>
+<tr class="even">
+<td align="left">Luke Skywalker</td>
+<td align="right">5</td>
+</tr>
+<tr class="odd">
+<td align="left">Palpatine</td>
+<td align="right">5</td>
+</tr>
+<tr class="even">
+<td align="left">Yoda</td>
+<td align="right">5</td>
+</tr>
+<tr class="odd">
+<td align="left">Darth Vader</td>
+<td align="right">4</td>
+</tr>
+<tr class="even">
+<td align="left">Han Solo</td>
+<td align="right">4</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="berechne-die-frauenquote-pro-film" class="section level3">
 <h3>Berechne die Frauenquote pro Film ?</h3>
@@ -176,8 +227,8 @@ ans <span class="op">%&gt;%</span><span class="st"> </span>
 <h2>Aufgaben: Analysiere Flugdaten</h2>
 <p>Datensatz <code>flights</code> aus Package <code>nycflights13</code>.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">data</span>(flights)</code></pre></div>
-<div id="htmlwidget-3da9623c410faf0686a3" style="width:700px;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-3da9623c410faf0686a3">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10"],[2013,2013,2013,2013,2013,2013,2013,2013,2013,2013],[10,5,6,1,7,11,8,9,4,2],[6,11,4,4,10,2,16,15,26,25],[1454,1422,801,1540,1311,911,555,1002,1346,1853],[1459,1426,806,1545,1315,915,600,1000,1259,1900],[-5,-4,-5,-5,-4,-4,-5,2,47,-7],[1720,1723,1000,1850,1446,1114,710,1442,1628,1957],[1756,1729,1003,1850,1505,1110,725,1445,1605,2012],[-36,-6,-3,0,-19,4,-15,-3,23,-15],["DL","B6","EV","DL","US","EV","AA","HA","UA","US"],[500,71,4691,2377,1014,5222,301,51,887,2140],["N3737C","N809JB","N14972","N331NW","N118US","N228PQ","N530AA","N391HA","N813UA","N957UW"],["JFK","JFK","EWR","LGA","EWR","EWR","LGA","JFK","EWR","LGA"],["LAS","FLL","DAY","MCO","CLT","DTW","ORD","HNL","RSW","BOS"],[288,153,84,145,74,88,105,615,144,34],[2248,1069,533,950,529,488,733,4983,1068,184],[14,14,8,15,13,9,6,10,12,19],[59,26,6,45,15,15,0,0,59,0],["2013-10-06T18:00:00Z","2013-05-11T18:00:00Z","2013-06-04T12:00:00Z","2013-01-04T20:00:00Z","2013-07-10T17:00:00Z","2013-11-02T13:00:00Z","2013-08-16T10:00:00Z","2013-09-15T14:00:00Z","2013-04-26T16:00:00Z","2013-02-26T00:00:00Z"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>year<\/th>\n      <th>month<\/th>\n      <th>day<\/th>\n      <th>dep_time<\/th>\n      <th>sched_dep_time<\/th>\n      <th>dep_delay<\/th>\n      <th>arr_time<\/th>\n      <th>sched_arr_time<\/th>\n      <th>arr_delay<\/th>\n      <th>carrier<\/th>\n      <th>flight<\/th>\n      <th>tailnum<\/th>\n      <th>origin<\/th>\n      <th>dest<\/th>\n      <th>air_time<\/th>\n      <th>distance<\/th>\n      <th>hour<\/th>\n      <th>minute<\/th>\n      <th>time_hour<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"scrollX":true,"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9,11,15,16,17,18]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-660cb08e009593b2f25a" style="width:700px;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-660cb08e009593b2f25a">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10"],[2013,2013,2013,2013,2013,2013,2013,2013,2013,2013],[8,8,5,12,4,10,5,7,11,1],[31,9,31,19,16,16,15,19,27,22],[1100,2116,954,717,1803,821,629,1746,1650,1438],[1040,1936,1000,715,1455,825,630,1655,1650,1429],[20,100,-6,2,188,-4,-1,51,0,9],[1214,20,1053,908,2101,1030,828,2038,1951,1634],[1146,2233,1134,905,1820,1022,849,1950,2002,1642],[28,107,-41,3,161,8,-21,48,-11,-8],["B6","B6","UA","WN","AA","B6","DL","AA","B6","DL"],[1291,1271,536,2606,1769,219,575,1507,89,1819],["N216JB","N612JB","N830UA","N263WN","N382AA","N339JB","N762NC","N593AA","N657JB","N929DN"],["JFK","LGA","EWR","LGA","JFK","JFK","EWR","EWR","JFK","LGA"],["ACK","FLL","ORD","STL","MIA","CLT","ATL","DFW","SAN","MSP"],[43,156,105,143,144,92,105,181,329,155],[199,1076,719,888,1089,541,746,1372,2446,1020],[10,19,10,7,14,8,6,16,16,14],[40,36,0,15,55,25,30,55,50,29],["2013-08-31T14:00:00Z","2013-08-09T23:00:00Z","2013-05-31T14:00:00Z","2013-12-19T12:00:00Z","2013-04-16T18:00:00Z","2013-10-16T12:00:00Z","2013-05-15T10:00:00Z","2013-07-19T20:00:00Z","2013-11-27T21:00:00Z","2013-01-22T19:00:00Z"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>year<\/th>\n      <th>month<\/th>\n      <th>day<\/th>\n      <th>dep_time<\/th>\n      <th>sched_dep_time<\/th>\n      <th>dep_delay<\/th>\n      <th>arr_time<\/th>\n      <th>sched_arr_time<\/th>\n      <th>arr_delay<\/th>\n      <th>carrier<\/th>\n      <th>flight<\/th>\n      <th>tailnum<\/th>\n      <th>origin<\/th>\n      <th>dest<\/th>\n      <th>air_time<\/th>\n      <th>distance<\/th>\n      <th>hour<\/th>\n      <th>minute<\/th>\n      <th>time_hour<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"scrollX":true,"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9,11,15,16,17,18]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <div id="welches-sind-die-beliebtesten-reiseziele" class="section level3">
 <h3>Welches sind die beliebtesten Reiseziele?</h3>
 <p>Liste die Top 10</p>

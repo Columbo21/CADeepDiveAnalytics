@@ -24,6 +24,7 @@ library(tidyverse)
 library(nycflights13)
 library(rvest)
 library(knitr)
+library(DT)
 ```
 
 ## Überblick
@@ -44,7 +45,7 @@ Basis Operationen von `dplyr`:
 ```{r}
 data(starwars)
 
-ans <- starwars %>% select(name, films) %>% 
+starwars %>% select(name, films) %>% 
     unnest() %>% 
     group_by(name) %>% 
     count() %>% arrange(desc(n)) %>% 

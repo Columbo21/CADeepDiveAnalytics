@@ -4,10 +4,10 @@ USERBLANK="ca-user"
 max=10
 for i in `seq 1 $max`
 do
-        sudo su -c "useradd $USERBLANK$i -s /bin/bash -m -g 100"
+        sudo adduser --gecos "" --disabled-password $USERBLANK$i
 done
 
 for i in `seq 1 $max`
 do
-    echo "$USERBLANK$i:iloveca" | sudo chpasswd
+    echo "$USERBLANK$i:iloveca2019" | sudo chpasswd
 done

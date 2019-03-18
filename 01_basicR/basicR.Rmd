@@ -94,7 +94,7 @@ x / y
 
 *Recycling:*
 
-> Ein kürzere Vektor wird immer wiederholt wenn er mit einem längeren
+> Ein kürzerer Vektor wird immer wiederholt wenn er mit einem längeren
 kombiniert wird.
 
 ```{r}
