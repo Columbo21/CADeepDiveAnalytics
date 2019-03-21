@@ -188,3 +188,7 @@ fit_glm %>% predict(testing) %>% confusionMatrix(testing$churn)
 fit_rf %>% predict(testing) %>% confusionMatrix(testing$churn)
 fit_xgbtree %>% predict(testing) %>% confusionMatrix(testing$churn)
 
+library(rpart.plot)
+fit_rf$finalModel %>% prp()
+
+varImp(fit_rf)
